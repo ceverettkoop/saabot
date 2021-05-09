@@ -60,12 +60,12 @@ void setup(){
   write_data(0x15, 0x00);
 
   //Disable envelopes on Channels 2 and 5
-//  write_data(0x18, 0x00);
-//  write_data(0x19, 0x00);
+  write_data(0x18, 0x00);
+  write_data(0x19, 0x00);
 
   //envelope control test set triangle envelope 2 and 5
-  write_data(0x18, 0x8A);
-  write_data(0x19, 0x8A);
+//  write_data(0x18, 0x8A);
+//  write_data(0x19, 0x8A);
 
 
   // Connect the handleNoteOn function to the library,
@@ -110,49 +110,20 @@ void loop(){
 
  MIDI.read();
  unsigned long now = millis();
+
+//10ms AD check
  if ( (now - lastUpdate) > 10 ) {
    lastUpdate += 10;
 
    for (int i = 0; i < 6; i++){
 
-  //ATTACK PROCESSING
-    if (outputStatus[i].channelActive == true && outputStatus[i].attackCount < 4){
+     processAttack(i);
+     processDecay(i);
 
-      outputStatus[i].sinceOn++;
-
-      if (outputStatus[i].sinceOn >= attackRate){
-        outputStatus[i].lastVolume++;
-        outputStatus[i].attackCount++;
-        byte dataOut = (outputStatus[i].lastVolume << 4) | outputStatus[i].lastVolume; //write new volume
-        write_data(i, dataOut);
-        outputStatus[i].sinceOn = 0;
-      }
-    }
-
-
-  //DECAY PROCESSING
-     //if key is off but sound is playing we are doing decay
-     if (outputStatus[i].keyOn == false && outputStatus[i].channelActive == true){
-       outputStatus[i].sinceOff++;
-
-       if (outputStatus[i].sinceOff >= decayRate){
-         outputStatus[i].lastVolume--;
-
-         if (outputStatus[i].lastVolume <= 0){
-           stopNote(i);
-          }
-            else{
-              byte dataOut = (outputStatus[i].lastVolume << 4) | outputStatus[i].lastVolume; //write new volume
-              write_data(i, dataOut);
-
-              outputStatus[i].sinceOff = 0;
-            }
-       }
-
-     }
    }
 
   }
+
 }
 
 
@@ -302,21 +273,58 @@ void handleNoteOff(byte channel, byte pitch, byte velocity) {
 
 short int getChannelOut(){
 
-//testing envelope generators channels 2 and 5
+/*testing envelope generators channels 2 and 5
   if (outputStatus[2].channelActive == false){
     return 2;
   }
     else{
       return 5;
     }
+*/
 
-/*
   for (int i = 0; i < 6; i++){
     if (outputStatus[i].channelActive == false){
       return i;
     }
   }
   return 0;
+}
 
-  */
+void processAttack(short int i){
+  //ATTACK PROCESSING
+    if (outputStatus[i].channelActive == true && outputStatus[i].attackCount < 4){
+
+      outputStatus[i].sinceOn++;
+
+      if (outputStatus[i].sinceOn >= attackRate){
+        outputStatus[i].lastVolume++;
+        outputStatus[i].attackCount++;
+        byte dataOut = (outputStatus[i].lastVolume << 4) | outputStatus[i].lastVolume; //write new volume
+        write_data(i, dataOut);
+        outputStatus[i].sinceOn = 0;
+      }
+    }
+}
+
+void processDecay(short int i){
+  //DECAY PROCESSING
+     //if key is off but sound is playing we are doing decay
+  if (outputStatus[i].keyOn == false && outputStatus[i].channelActive == true){
+   outputStatus[i].sinceOff++;
+
+   if (outputStatus[i].sinceOff >= decayRate){
+     outputStatus[i].lastVolume--;
+
+     if (outputStatus[i].lastVolume <= 0){
+       stopNote(i);
+      }
+        else{
+          byte dataOut = (outputStatus[i].lastVolume << 4) | outputStatus[i].lastVolume; //write new volume
+          write_data(i, dataOut);
+
+          outputStatus[i].sinceOff = 0;
+        }
+
+    }
+  }
 }
