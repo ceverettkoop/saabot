@@ -59,9 +59,14 @@ void setup(){
  	//Disable the noise channels
   write_data(0x15, 0x00);
 
- 	//Disable envelopes on Channels 2 and 5
-  write_data(0x18, 0x00);
-  write_data(0x19, 0x00);
+  //Disable envelopes on Channels 2 and 5
+//  write_data(0x18, 0x00);
+//  write_data(0x19, 0x00);
+
+  //envelope control test set triangle envelope 2 and 5
+  write_data(0x18, 0x8A);
+  write_data(0x19, 0x8A);
+
 
   // Connect the handleNoteOn function to the library,
   // so it is called upon reception of a NoteOn.
@@ -94,6 +99,9 @@ void setup(){
   stopNote(3);
   stopNote(4);
   stopNote(5);
+
+
+
 
 }
 
@@ -293,10 +301,22 @@ void handleNoteOff(byte channel, byte pitch, byte velocity) {
 }
 
 short int getChannelOut(){
+
+//testing envelope generators channels 2 and 5
+  if (outputStatus[2].channelActive == false){
+    return 2;
+  }
+    else{
+      return 5;
+    }
+
+/*
   for (int i = 0; i < 6; i++){
     if (outputStatus[i].channelActive == false){
       return i;
     }
   }
   return 0;
+
+  */
 }
