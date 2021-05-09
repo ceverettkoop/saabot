@@ -19,6 +19,9 @@ const int pinWR =  11;
 //AO pin of SAA1099 -indicates address or control register target
 const int pinAO =  12;
 
+const int decayRate = 20;
+const int attackRate = 10;
+
 struct status{
   boolean channelActive;
   boolean keyOn;
@@ -26,16 +29,17 @@ struct status{
   int sinceOff;
   byte prevOctaves;
   byte currentPitch;
-  byte lastVolume;
+  int lastVolume;
+  short int attackCount;
 };
 
 struct status outputStatus[] = {
-  {false, false, 0, 0, 0, 0, 0},  //channel 0
-  {false, false, 0, 0, 0, 0, 0},  //channel 1
-  {false, false, 0, 0, 0, 0, 0},  //channel 2
-  {false, false, 0, 0, 0, 0, 0},  //channel 3
-  {false, false, 0, 0, 0, 0, 0},  //channel 4
-  {false, false, 0, 0, 0, 0, 0},  //channel 5
+  {false, false, 0, 0, 0, 0, 0, 0},  //channel 0
+  {false, false, 0, 0, 0, 0, 0, 0},  //channel 1
+  {false, false, 0, 0, 0, 0, 0, 0},  //channel 2
+  {false, false, 0, 0, 0, 0, 0, 0},  //channel 3
+  {false, false, 0, 0, 0, 0, 0, 0},  //channel 4
+  {false, false, 0, 0, 0, 0, 0, 0},  //channel 5
 };
 
 void setup(){
@@ -83,12 +87,6 @@ void setup(){
   delay(32);
   startNote(4, 64, 64);
   delay(1028);
-  stopNote(0);
-  stopNote(1);
-  stopNote(2);
-  stopNote(3);
-  stopNote(4);
-  stopNote(5);
 
   stopNote(0);
   stopNote(1);
@@ -103,36 +101,51 @@ void setup(){
 void loop(){
 
  MIDI.read();
+ unsigned long now = millis();
+ if ( (now - lastUpdate) > 10 ) {
+   lastUpdate += 10;
+
+   for (int i = 0; i < 6; i++){
+
+  //ATTACK PROCESSING
+    if (outputStatus[i].channelActive == true && outputStatus[i].attackCount < 4){
+
+      outputStatus[i].sinceOn++;
+
+      if (outputStatus[i].sinceOn >= attackRate){
+        outputStatus[i].lastVolume++;
+        outputStatus[i].attackCount++;
+        byte dataOut = (outputStatus[i].lastVolume << 4) | outputStatus[i].lastVolume; //write new volume
+        write_data(i, dataOut);
+        outputStatus[i].sinceOn = 0;
+      }
+    }
 
 
- for (int i = 0; i < 6; i++){
-
-   //if key is off we are doing decay
-   if (outputStatus[i].keyOn == false && outputStatus[i].channelActive == true){
-
-     //advance decay status by1 if 100ms have passed since last check
-     unsigned long now = millis();
-     if ( (now - lastUpdate) > 100 ) {
-       lastUpdate += 100;
+  //DECAY PROCESSING
+     //if key is off but sound is playing we are doing decay
+     if (outputStatus[i].keyOn == false && outputStatus[i].channelActive == true){
        outputStatus[i].sinceOff++;
+
+       if (outputStatus[i].sinceOff >= decayRate){
+         outputStatus[i].lastVolume--;
+
+         if (outputStatus[i].lastVolume <= 0){
+           stopNote(i);
+          }
+            else{
+              byte dataOut = (outputStatus[i].lastVolume << 4) | outputStatus[i].lastVolume; //write new volume
+              write_data(i, dataOut);
+
+              outputStatus[i].sinceOff = 0;
+            }
+       }
+
      }
-
-     int newVol = outputStatus[i].lastVolume - outputStatus[i].sinceOff;
-
-     if (newVol <= 0){
-       stopNote(i);
-      }
-
-     if ( newVol > 0 ){ //if volume changed write it
-      byte dataOut = (newVol << 4) | newVol;
-      write_data(i, dataOut);
-      outputStatus[i].lastVolume = newVol;
-      }
    }
- }
 
+  }
 }
-
 
 
 void startNote (byte chan, byte note, byte volume) {
@@ -179,10 +192,13 @@ void startNote (byte chan, byte note, byte volume) {
 
   addressOut = chan;
 
-  //code to treat velocity as volume
-  byte vol = volume / 8;
+  //code to treat velocity as, set starting volume 4 short of full
+  byte vol = (volume / 8) - 4;
+  if (vol >= 0){
+    vol = 1;
+  }
 
-  //byte vol = 15;
+  //byte vol = 15;  //alternately we are just going to start at full blast for now
   outputStatus[chan].lastVolume = vol;
 
 	dataOut = (vol << 4) | vol;
@@ -190,6 +206,7 @@ void startNote (byte chan, byte note, byte volume) {
   write_data(addressOut, dataOut);
 
   outputStatus[chan].sinceOff = 0;
+  outputStatus[chan].sinceOn = 0;
 
 }
 
@@ -201,6 +218,7 @@ void stopNote (byte chan) {
   write_data(addressOut, B00000000);
   outputStatus[chan].channelActive = false;
   outputStatus[chan].sinceOff = 0;
+  outputStatus[chan].attackCount = 0;
 
 }
 
