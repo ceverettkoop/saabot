@@ -19,8 +19,8 @@ const int pinWR =  11;
 //AO pin of SAA1099 -indicates address or control register target
 const int pinAO =  12;
 
-const int decayRate = 20;
-const int attackRate = 10;
+const int decayRate = 10;
+const int attackRate = 5;
 
 struct status{
   boolean channelActive;
@@ -172,9 +172,12 @@ void startNote (byte chan, byte note, byte volume) {
   addressOut = chan;
 
   //code to treat velocity as, set starting volume 4 short of full
-  byte vol = (volume / 8) - 4;
-  if (vol >= 0){
+  byte vol = (volume / 8);
+  if (vol <= 0){
     vol = 1;
+  }
+  if (vol >= 15){
+    vol = 11;
   }
 
   //byte vol = 15;  //alternately we are just going to start at full blast for now
