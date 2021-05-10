@@ -19,8 +19,8 @@ const int pinWR =  11;
 //AO pin of SAA1099 -indicates address or control register target
 const int pinAO =  12;
 
-const int decayRate = 10;
-const int attackRate = 5;
+const int decayRate = 12;
+const int attackRate = 8;
 
 struct status{
   boolean channelActive;
@@ -176,7 +176,7 @@ void startNote (byte chan, byte note, byte volume) {
   if (vol <= 0){
     vol = 1;
   }
-  if (vol >= 15){
+  if (vol >= 11){
     vol = 11;
   }
 
@@ -262,6 +262,16 @@ void handleNoteOn(byte channel, byte pitch, byte velocity) {
 
   startNote(channelOut, pitch, velocity);
 
+  //check if another channel is free, if so play octave
+  if (isChannelFree()){
+    channelOut = getChannelOut();
+    outputStatus[channelOut].channelActive = true;
+    outputStatus[channelOut].keyOn = true;
+    outputStatus[channelOut].currentPitch = (pitch+12);
+
+    startNote(channelOut, (pitch + 12), velocity);
+  }
+
 }
 
 void handleNoteOff(byte channel, byte pitch, byte velocity) {
@@ -270,6 +280,10 @@ void handleNoteOff(byte channel, byte pitch, byte velocity) {
     if ((outputStatus[i].currentPitch == pitch) && (outputStatus[i].keyOn == true)){
       outputStatus[i].keyOn = false;
     }
+    if ((outputStatus[i].currentPitch == pitch + 12) && (outputStatus[i].keyOn == true)){
+      outputStatus[i].keyOn = false;
+    }
+
   }
 
 }
@@ -288,6 +302,15 @@ short int getChannelOut(){
   for (int i = 0; i < 6; i++){
     if (outputStatus[i].channelActive == false){
       return i;
+    }
+  }
+  return 0;
+}
+
+boolean isChannelFree(){
+  for (int i = 0; i < 6; i++){
+    if (outputStatus[i].channelActive == false){
+      return 1;
     }
   }
   return 0;
