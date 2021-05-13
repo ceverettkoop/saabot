@@ -1,4 +1,5 @@
 //SAA1099P midi controller
+//
 
 #include <MIDI.h>
 
@@ -20,8 +21,8 @@ const int pinWR =  11;
 const int pinAO =  12;
 
 const int releaseRate = 12;
-const int attackRate = 8;
-const int decayRate = 8;
+const int attackRate = 4;
+const int decayRate = 4;
 
 struct status{
   boolean channelActive;
@@ -336,7 +337,7 @@ void processAttack(short int i){
 
 void processDecay(short int i){
   //decay PROCESSING - sustain is set by upper bound
-    if (outputStatus[i].channelActive == true && outputStatus[i].attackCount > 4 && outputStatus[i].attackCount >= 8 ){ //last number sets sustain
+    if (outputStatus[i].channelActive == true && outputStatus[i].attackCount >= 4 && outputStatus[i].attackCount < 8 ){ //last number sets sustain
 
       outputStatus[i].sinceOn++;
 
