@@ -1,4 +1,5 @@
 //SAA1099P midi controller
+//
 
 #include <MIDI.h>
 
@@ -19,8 +20,9 @@ const int pinWR =  11;
 //AO pin of SAA1099 -indicates address or control register target
 const int pinAO =  12;
 
-const int decayRate = 20;
-const int attackRate = 10;
+const int releaseRate = 12;
+const int attackRate = 4;
+const int decayRate = 4;
 
 struct status{
   boolean channelActive;
@@ -59,9 +61,14 @@ void setup(){
  	//Disable the noise channels
   write_data(0x15, 0x00);
 
- 	//Disable envelopes on Channels 2 and 5
+  //Disable envelopes on Channels 2 and 5
   write_data(0x18, 0x00);
   write_data(0x19, 0x00);
+
+  //envelope control test set triangle envelope 2 and 5
+//  write_data(0x18, 0x8A);
+//  write_data(0x19, 0x8A);
+
 
   // Connect the handleNoteOn function to the library,
   // so it is called upon reception of a NoteOn.
@@ -95,6 +102,9 @@ void setup(){
   stopNote(4);
   stopNote(5);
 
+
+
+
 }
 
 
@@ -102,49 +112,21 @@ void loop(){
 
  MIDI.read();
  unsigned long now = millis();
+
+//10ms ADSR check
  if ( (now - lastUpdate) > 10 ) {
    lastUpdate += 10;
 
    for (int i = 0; i < 6; i++){
 
-  //ATTACK PROCESSING
-    if (outputStatus[i].channelActive == true && outputStatus[i].attackCount < 4){
+     processAttack(i);
+     processDecay(i);
+     processRelease(i);
 
-      outputStatus[i].sinceOn++;
-
-      if (outputStatus[i].sinceOn >= attackRate){
-        outputStatus[i].lastVolume++;
-        outputStatus[i].attackCount++;
-        byte dataOut = (outputStatus[i].lastVolume << 4) | outputStatus[i].lastVolume; //write new volume
-        write_data(i, dataOut);
-        outputStatus[i].sinceOn = 0;
-      }
-    }
-
-
-  //DECAY PROCESSING
-     //if key is off but sound is playing we are doing decay
-     if (outputStatus[i].keyOn == false && outputStatus[i].channelActive == true){
-       outputStatus[i].sinceOff++;
-
-       if (outputStatus[i].sinceOff >= decayRate){
-         outputStatus[i].lastVolume--;
-
-         if (outputStatus[i].lastVolume <= 0){
-           stopNote(i);
-          }
-            else{
-              byte dataOut = (outputStatus[i].lastVolume << 4) | outputStatus[i].lastVolume; //write new volume
-              write_data(i, dataOut);
-
-              outputStatus[i].sinceOff = 0;
-            }
-       }
-
-     }
    }
 
   }
+
 }
 
 
@@ -192,13 +174,15 @@ void startNote (byte chan, byte note, byte volume) {
 
   addressOut = chan;
 
-  //code to treat velocity as, set starting volume 4 short of full
-  byte vol = (volume / 8) - 4;
-  if (vol >= 0){
+  //code to treat velocity as volume, reduce upper bound so that attack doesn't take us past max
+  byte vol = (volume / 8);
+  if (vol <= 0){
     vol = 1;
   }
+  if (vol >= 11){
+    vol = 11;
+  }
 
-  //byte vol = 15;  //alternately we are just going to start at full blast for now
   outputStatus[chan].lastVolume = vol;
 
 	dataOut = (vol << 4) | vol;
@@ -280,6 +264,16 @@ void handleNoteOn(byte channel, byte pitch, byte velocity) {
 
   startNote(channelOut, pitch, velocity);
 
+  //check if another channel is free, if so play octave
+  if (isChannelFree()){
+    channelOut = getChannelOut();
+    outputStatus[channelOut].channelActive = true;
+    outputStatus[channelOut].keyOn = true;
+    outputStatus[channelOut].currentPitch = (pitch+12);
+
+    startNote(channelOut, (pitch + 12), velocity);
+  }
+
 }
 
 void handleNoteOff(byte channel, byte pitch, byte velocity) {
@@ -288,15 +282,94 @@ void handleNoteOff(byte channel, byte pitch, byte velocity) {
     if ((outputStatus[i].currentPitch == pitch) && (outputStatus[i].keyOn == true)){
       outputStatus[i].keyOn = false;
     }
+    if ((outputStatus[i].currentPitch == pitch + 12) && (outputStatus[i].keyOn == true)){
+      outputStatus[i].keyOn = false;
+    }
+
   }
 
 }
 
 short int getChannelOut(){
+
+/*this code is for testing the two channels with built-in envelope control /*
+
+  if (outputStatus[2].channelActive == false){
+    return 2;
+  }
+    else{
+      return 5;
+    }
+*/
+
   for (int i = 0; i < 6; i++){
     if (outputStatus[i].channelActive == false){
       return i;
     }
   }
   return 0;
+}
+
+boolean isChannelFree(){
+  for (int i = 0; i < 6; i++){
+    if (outputStatus[i].channelActive == false){
+      return 1;
+    }
+  }
+  return 0;
+}
+
+void processAttack(short int i){
+  //ATTACK PROCESSING
+    if (outputStatus[i].channelActive == true && outputStatus[i].attackCount < 4){
+
+      outputStatus[i].sinceOn++;
+
+      if (outputStatus[i].sinceOn >= attackRate){
+        outputStatus[i].lastVolume++;
+        outputStatus[i].attackCount++;
+        byte dataOut = (outputStatus[i].lastVolume << 4) | outputStatus[i].lastVolume; //write new volume
+        write_data(i, dataOut);
+        outputStatus[i].sinceOn = 0;
+      }
+    }
+}
+
+void processDecay(short int i){
+  //decay PROCESSING - sustain is set by upper bound
+    if (outputStatus[i].channelActive == true && outputStatus[i].attackCount >= 4 && outputStatus[i].attackCount < 8 ){ //last number sets sustain
+
+      outputStatus[i].sinceOn++;
+
+      if (outputStatus[i].sinceOn >= decayRate){
+        outputStatus[i].lastVolume--;
+        outputStatus[i].attackCount++;
+        byte dataOut = (outputStatus[i].lastVolume << 4) | outputStatus[i].lastVolume; //write new volume
+        write_data(i, dataOut);
+        outputStatus[i].sinceOn = 0;
+      }
+    }
+}
+
+void processRelease(short int i){
+  //release PROCESSING
+     //if key is off but sound is playing we are still in release
+  if (outputStatus[i].keyOn == false && outputStatus[i].channelActive == true){
+   outputStatus[i].sinceOff++;
+
+   if (outputStatus[i].sinceOff >= releaseRate){
+     outputStatus[i].lastVolume--;
+
+     if (outputStatus[i].lastVolume <= 0){ //if release takes us to 0 stop note
+       stopNote(i);
+      }
+        else{
+          byte dataOut = (outputStatus[i].lastVolume << 4) | outputStatus[i].lastVolume; //write new volume
+          write_data(i, dataOut);
+
+          outputStatus[i].sinceOff = 0;
+        }
+
+    }
+  }
 }
