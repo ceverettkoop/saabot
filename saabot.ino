@@ -15,10 +15,11 @@ const int latchPin = 9;
 const int dataPin = 10;
 
 //pin connected to WR pin of SAA1099 - active low indicates writing data
-const int pinWR =  11;
+const int pinWR = 2 ; //2 for pcb 11 for proto
 
 //AO pin of SAA1099 -indicates address or control register target
-const int pinAO =  12;
+const int pinAO = 3; //3 for pcb 12 for proto
+
 
 const int releaseRate = 12;
 const int attackRate = 4;
@@ -45,6 +46,18 @@ struct status outputStatus[] = {
 };
 
 void setup(){
+
+  //8mhz on A5???
+    // LUT0 is the D input, which is connected to the flipflop output
+  CCL.LUT0CTRLB = CCL_INSEL0_FEEDBACK_gc; // Input from sequencer
+  CCL.TRUTH0 = 1; // Invert the input
+  CCL.SEQCTRL0 = CCL_SEQSEL0_DFF_gc; // D flipflop
+  // The following line configures using the system clock, OUTEN, and ENABLE
+  CCL.LUT0CTRLA = CCL_OUTEN_bm | CCL_ENABLE_bm;
+  // LUT1 is the D flipflop G input, which is always high
+  CCL.TRUTH1 = 0xff;
+  CCL.LUT1CTRLA = CCL_ENABLE_bm; // Turn on LUT1
+  CCL.CTRLA = 1; // Enable the CCL
 
   //init pins
    pinMode(clockPin, OUTPUT);
@@ -82,17 +95,17 @@ void setup(){
 
 
   //startup noise
-  startNote(3, 24, 64);
+  startNote(3, 24, 32);
   delay(32);
-  startNote(0, 48, 64);
+  startNote(0, 48, 32);
   delay(32);
-  startNote(1, 52, 64);
+  startNote(1, 52, 32);
   delay(32);
-  startNote(2, 55, 64);
+  startNote(2, 55, 32);
   delay(32);
-  startNote(3, 60, 64);
+  startNote(3, 60, 32);
   delay(32);
-  startNote(4, 64, 64);
+  startNote(4, 64, 32);
   delay(1028);
 
   stopNote(0);
@@ -126,6 +139,7 @@ void loop(){
    }
 
   }
+
 
 }
 
@@ -256,6 +270,9 @@ void write_data(unsigned char address, unsigned char data)
 }
 
 void handleNoteOn(byte channel, byte pitch, byte velocity) {
+
+  startNote(4, 64, 32);
+
   short int channelOut = getChannelOut();
 
   outputStatus[channelOut].channelActive = true;
