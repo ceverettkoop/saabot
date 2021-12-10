@@ -3,7 +3,16 @@
 
 #include <MIDI.h>
 
-MIDI_CREATE_DEFAULT_INSTANCE();
+struct MySettings : public midi::DefaultSettings
+{
+    static const unsigned SysExMaxSize = 1024; // Accept SysEx messages up to 1024 bytes long.
+    static const bool UseRunningStatus = true; // My devices seem to be ok with it.
+};
+
+// Create a 'MIDI' object using MySettings bound to Serial2.
+MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
+
+//MIDI_CREATE_DEFAULT_INSTANCE();
 
 static unsigned long lastUpdate = 0;
 
@@ -21,8 +30,8 @@ const int pinWR = 2 ; //2 for pcb 11 for proto
 const int pinAO = 3; //3 for pcb 12 for proto
 
 
-const int releaseRate = 12;
-const int attackRate = 4;
+const int releaseRate = 32;
+const int attackRate = 8;
 const int decayRate = 4;
 
 struct status{
@@ -93,6 +102,7 @@ void setup(){
   // Initiate MIDI communications, listen to all channels
   MIDI.begin(MIDI_CHANNEL_OMNI);
 
+  Serial.begin(57600);
 
   //startup noise
   startNote(3, 24, 32);
@@ -115,13 +125,11 @@ void setup(){
   stopNote(4);
   stopNote(5);
 
-
-
-
 }
 
 
 void loop(){
+
 
  MIDI.read();
  unsigned long now = millis();
@@ -135,9 +143,7 @@ void loop(){
      processAttack(i);
      processDecay(i);
      processRelease(i);
-
    }
-
   }
 
 
@@ -271,8 +277,6 @@ void write_data(unsigned char address, unsigned char data)
 
 void handleNoteOn(byte channel, byte pitch, byte velocity) {
 
-  startNote(4, 64, 32);
-
   short int channelOut = getChannelOut();
 
   outputStatus[channelOut].channelActive = true;
@@ -370,6 +374,12 @@ void processDecay(short int i){
 
 void processRelease(short int i){
   //release PROCESSING
+
+    //check if already Off
+    if (outputStatus[i].lastVolume <= 0){ //if release takes us to 0 stop note
+      stopNote(i);
+    }
+
      //if key is off but sound is playing we are still in release
   if (outputStatus[i].keyOn == false && outputStatus[i].channelActive == true){
    outputStatus[i].sinceOff++;
