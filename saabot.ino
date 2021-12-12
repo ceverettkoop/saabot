@@ -9,10 +9,15 @@ struct MySettings : public midi::DefaultSettings
     static const bool UseRunningStatus = true; // My devices seem to be ok with it.
 };
 
-// Create a 'MIDI' object using MySettings bound to Serial2.
-MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
+// read through midi jack
+//MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
 
-//MIDI_CREATE_DEFAULT_INSTANCE();
+//read through usb serial
+struct CustomBaud : public midi::DefaultSettings{
+    static const long BaudRate = 38400; // Baud rate for hairless
+};
+MIDI_CREATE_CUSTOM_INSTANCE(HardwareSerial, Serial, MIDI, CustomBaud);
+
 
 static unsigned long lastUpdate = 0;
 
@@ -101,8 +106,7 @@ void setup(){
 
   // Initiate MIDI communications, listen to all channels
   MIDI.begin(MIDI_CHANNEL_OMNI);
-
-  Serial.begin(57600);
+  Serial.begin(38400); //for midi over USB
 
   //startup noise
   startNote(3, 24, 32);
