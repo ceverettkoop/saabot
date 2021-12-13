@@ -1,13 +1,22 @@
 //SAA1099P midi controller
 //
 
+//channel 0 = square
+//channel 1 = controls 2s envelope
+//channel 2 = custom tone
+//channel 3 = square
+//channel 4 = square
+//channel 5 = percussion
+
 #include <MIDI.h>
 
+/*
 struct MySettings : public midi::DefaultSettings
 {
     static const unsigned SysExMaxSize = 1024; // Accept SysEx messages up to 1024 bytes long.
     static const bool UseRunningStatus = true; // My devices seem to be ok with it.
 };
+*/
 
 // read through midi jack
 //MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
@@ -20,6 +29,7 @@ MIDI_CREATE_CUSTOM_INSTANCE(HardwareSerial, Serial, MIDI, CustomBaud);
 
 
 static unsigned long lastUpdate = 0;
+static unsigned long lastUpdateClock = 0;
 
 //Pin connected to clock pin (SH_CP) of 74HC595
 const int clockPin = 8;
@@ -42,21 +52,23 @@ const int decayRate = 4;
 struct status{
   boolean channelActive;
   boolean keyOn;
+  boolean isPerc;
   int sinceOn;
   int sinceOff;
   byte prevOctaves;
   byte currentPitch;
+  byte inputChannel;
   int lastVolume;
   short int attackCount;
 };
 
 struct status outputStatus[] = {
-  {false, false, 0, 0, 0, 0, 0, 0},  //channel 0
-  {false, false, 0, 0, 0, 0, 0, 0},  //channel 1
-  {false, false, 0, 0, 0, 0, 0, 0},  //channel 2
-  {false, false, 0, 0, 0, 0, 0, 0},  //channel 3
-  {false, false, 0, 0, 0, 0, 0, 0},  //channel 4
-  {false, false, 0, 0, 0, 0, 0, 0},  //channel 5
+  {false, false, false, 0, 0, 0, 0, 0, 0, 0},  //channel 0
+  {false, false, false, 0, 0, 0, 0, 0, 0, 0},  //channel 1
+  {false, false, false, 0, 0, 0, 0, 0, 0, 0},  //channel 2
+  {false, false, false, 0, 0, 0, 0, 0, 0, 0},  //channel 3
+  {false, false, false, 0, 0, 0, 0, 0, 0, 0},  //channel 4
+  {false, false, false, 0, 0, 0, 0, 0, 0, 0},  //channel 5
 };
 
 void setup(){
@@ -88,9 +100,9 @@ void setup(){
  	//Disable the noise channels
   write_data(0x15, 0x00);
 
-  //Disable envelopes on Channels 2 and 5
+  //Disable envelopes on Channels 2
   write_data(0x18, 0x00);
-  write_data(0x19, 0x00);
+  write_data(0x19, B10101110);   //set channel 5 envelope
 
   //envelope control test set triangle envelope 2 and 5
 //  write_data(0x18, 0x8A);
@@ -109,17 +121,18 @@ void setup(){
   Serial.begin(38400); //for midi over USB
 
   //startup noise
-  startNote(3, 24, 32);
+  startNote(0, 24, 32);
   delay(32);
-  startNote(0, 48, 32);
+  startNote(3, 48, 32);
   delay(32);
-  startNote(1, 52, 32);
+  startNote(4, 52, 32);
   delay(32);
-  startNote(2, 55, 32);
+  startNote(0, 55, 32);
   delay(32);
   startNote(3, 60, 32);
   delay(32);
   startNote(4, 64, 32);
+  startNote(5, 52, 32);
   delay(1028);
 
   stopNote(0);
@@ -138,16 +151,27 @@ void loop(){
  MIDI.read();
  unsigned long now = millis();
 
+
+//1ms emptydata to clock envelope at 500 hz?
+if ( (now - lastUpdateClock) > 1 ) {
+  lastUpdate += 1;
+  write_data (0x06, 0); //should be nothing
+ }
+
+
 //10ms ADSR check
  if ( (now - lastUpdate) > 10 ) {
    lastUpdate += 10;
 
-   for (int i = 0; i < 6; i++){
+   for (int i = 0; i < 6; i++){ //reduce to 5 for drums
 
      processAttack(i);
      processDecay(i);
      processRelease(i);
+
    }
+
+   //processPerc(5);
   }
 
 
@@ -156,47 +180,12 @@ void loop(){
 
 void startNote (byte chan, byte note, byte volume) {
 
-  byte noteAdr[] = {5, 32, 60, 85, 110, 132, 153, 173, 192, 210, 227, 243}; // The 12 note-within-an-octave values for the SAA1099, starting at B
-  byte octaveAdr[] = {0x10, 0x11, 0x12}; //The 3 octave addresses (was 10, 11, 12)
-  byte channelAdr[] = {0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D}; //Addresses for the channel frequencies
-  byte addressOut;
-  byte dataOut;
-
-  //Shift the note down by 1, since MIDI octaves start at C, but octaves on the SAA1099 start at B
-  note += 1;
-
-  byte octave = (note / 12) - 1; //Some fancy math to get the correct octave
-  byte noteVal = note - ((octave + 1) * 12); //More fancy math to get the correct note
-
-  outputStatus[chan].prevOctaves = octave; //Set this variable so we can remember /next/ time what octave was /last/ played on this channel
-
-  //set octave address
-  addressOut = octaveAdr[chan / 2];
-
-  //set octave data
-  if (chan == 0 || chan == 2 || chan == 4) {
-    dataOut = octave | (outputStatus[chan + 1].prevOctaves << 4); //Do fancy math so that we don't overwrite what's already on the register, except in the area we want to.
-  }
-
-  if (chan == 1 || chan == 3 || chan == 5) {
-    dataOut = (octave << 4) | outputStatus[chan - 1].prevOctaves ; //Do fancy math so that we don't overwrite what's already on the register, except in the area we want to.
-  }
-
-  write_data(addressOut, dataOut); //write octave
-
-  //Note addressing and playing code
-  //Set address to the channel's address
-  addressOut = channelAdr[chan];
-
-
-  //set note data and write address + data
-  dataOut = noteAdr[noteVal];
-  write_data(addressOut, dataOut);
+  setFrequency(chan, note);
 
   //Setting volume to match velocity - decay and release handled elsewhere
   //Set the Address to the volume channel
 
-  addressOut = chan;
+  byte addressOut = chan;
 
   //code to treat velocity as volume, reduce upper bound so that attack doesn't take us past max
   byte vol = (volume / 8);
@@ -209,16 +198,16 @@ void startNote (byte chan, byte note, byte volume) {
 
   outputStatus[chan].lastVolume = vol;
 
-	dataOut = (vol << 4) | vol;
+  //write volume
+	byte dataOut = (vol << 4) | vol;
 
   write_data(addressOut, dataOut);
 
   outputStatus[chan].sinceOff = 0;
   outputStatus[chan].sinceOn = 0;
 
+
 }
-
-
 
 void stopNote (byte chan) {
 
@@ -229,6 +218,28 @@ void stopNote (byte chan) {
   outputStatus[chan].attackCount = 0;
 
 }
+
+void startPerc (byte chan, byte note, byte volume){
+
+  byte addressOut = chan;
+  startNote(chan, note, volume);
+
+  write_data(0x15, B00100000); //enable noise on channel 5 only
+  //write_data(0x14, B00011111); //disable frequency on channel 5
+  write_data(0x16, B00100000);  //set noise generators
+  write_data(0x19, B10110100);  //set channel 5 envelope
+
+}
+
+void customTone(byte chan, byte note, byte volume){
+
+  //set envelope generator
+  write_data(0x18, B10011010); //triangle at frequency of channel 1?
+  startNote(chan, note, volume) ;
+  setFrequency(1, 40); //change channel 1 frequency to midi note 1 = ??
+
+}
+
 
 //data writing through 74HC595
 
@@ -281,22 +292,45 @@ void write_data(unsigned char address, unsigned char data)
 
 void handleNoteOn(byte channel, byte pitch, byte velocity) {
 
-  short int channelOut = getChannelOut();
+  short int channelOut;
 
-  outputStatus[channelOut].channelActive = true;
-  outputStatus[channelOut].keyOn = true;
-  outputStatus[channelOut].currentPitch = pitch;
+/*percussion
+//if channel 10 route to channel 5 and trigger percussion
+  if (channel == 10){
 
-  startNote(channelOut, pitch, velocity);
-
-  //check if another channel is free, if so play octave
-  if (isChannelFree()){
-    channelOut = getChannelOut();
+    channelOut = 5;
+    outputStatus[channelOut].isPerc = true;
     outputStatus[channelOut].channelActive = true;
     outputStatus[channelOut].keyOn = true;
-    outputStatus[channelOut].currentPitch = (pitch+12);
+    outputStatus[channelOut].currentPitch = pitch;
+    outputStatus[channelOut].inputChannel = channel;
+    startPerc(channelOut, pitch, velocity);
+  }
+  */
 
-    startNote(channelOut, (pitch + 12), velocity);
+  //if channel 2 route to channel 2 for custom instrument
+    if (channel == 2){
+
+      channelOut = 2;
+      outputStatus[channelOut].isPerc = false;
+      outputStatus[channelOut].channelActive = true;
+      outputStatus[channelOut].keyOn = true;
+      outputStatus[channelOut].currentPitch = pitch;
+      outputStatus[channelOut].inputChannel = channel;
+      customTone(channelOut, pitch, velocity);
+    }
+
+//otherwise square wave to channel 0,3,4.5
+  if ((channel != 10) && (channel != 2)){
+    channelOut = getSquareChannelOut();
+    outputStatus[channelOut].isPerc = false;
+    outputStatus[channelOut].channelActive = true;
+    outputStatus[channelOut].keyOn = true;
+    outputStatus[channelOut].currentPitch = pitch;
+    outputStatus[channelOut].inputChannel = channel;
+
+    startNote(channelOut, pitch, velocity);
+
   }
 
 }
@@ -304,45 +338,41 @@ void handleNoteOn(byte channel, byte pitch, byte velocity) {
 void handleNoteOff(byte channel, byte pitch, byte velocity) {
 
   for (int i = 0; i < 6; i++){
-    if ((outputStatus[i].currentPitch == pitch) && (outputStatus[i].keyOn == true)){
+    if ((outputStatus[i].currentPitch == pitch) && (outputStatus[i].keyOn == true) && (outputStatus[i].inputChannel == channel) ){
       outputStatus[i].keyOn = false;
     }
-    if ((outputStatus[i].currentPitch == pitch + 12) && (outputStatus[i].keyOn == true)){
-      outputStatus[i].keyOn = false;
-    }
-
   }
 
 }
 
-short int getChannelOut(){
+short int getSquareChannelOut(){
+    //square channels are 0, 3, 4
+  short int squares[4] = {0,3,4,5}; //comment out 5 if adding perc
 
-/*this code is for testing the two channels with built-in envelope control /*
+  for (int i = 0; i < 4; i++){
+    short int check = squares[i];
+    if (outputStatus[check].channelActive == false){
+      return check;
+    }
+  }
 
-  if (outputStatus[2].channelActive == false){
+  //if all are busy pick the middle note
+  if ( (outputStatus[1].currentPitch < outputStatus[0].currentPitch) && (outputStatus[1].currentPitch > outputStatus[2].currentPitch)){
+    return 1;
+  }
+  if ( (outputStatus[2].currentPitch < outputStatus[0].currentPitch) && (outputStatus[2].currentPitch > outputStatus[1].currentPitch)){
     return 2;
   }
-    else{
-      return 5;
-    }
-*/
-
-  for (int i = 0; i < 6; i++){
-    if (outputStatus[i].channelActive == false){
-      return i;
-    }
+  if ( (outputStatus[1].currentPitch < outputStatus[2].currentPitch) && (outputStatus[1].currentPitch > outputStatus[0].currentPitch)){
+    return 1;
   }
+  if ( (outputStatus[2].currentPitch < outputStatus[1].currentPitch) && (outputStatus[2].currentPitch > outputStatus[0].currentPitch)){
+    return 2;
+  }
+
   return 0;
 }
 
-boolean isChannelFree(){
-  for (int i = 0; i < 6; i++){
-    if (outputStatus[i].channelActive == false){
-      return 1;
-    }
-  }
-  return 0;
-}
 
 void processAttack(short int i){
   //ATTACK PROCESSING
@@ -361,19 +391,20 @@ void processAttack(short int i){
 }
 
 void processDecay(short int i){
-  //decay PROCESSING - sustain is set by upper bound
-    if (outputStatus[i].channelActive == true && outputStatus[i].attackCount >= 4 && outputStatus[i].attackCount < 8 ){ //last number sets sustain
 
-      outputStatus[i].sinceOn++;
+//decay PROCESSING - sustain is set by upper bound
+  if (outputStatus[i].channelActive == true && outputStatus[i].attackCount >= 4 && outputStatus[i].attackCount < 8 ){ //last number sets sustain
 
-      if (outputStatus[i].sinceOn >= decayRate){
-        outputStatus[i].lastVolume--;
-        outputStatus[i].attackCount++;
-        byte dataOut = (outputStatus[i].lastVolume << 4) | outputStatus[i].lastVolume; //write new volume
-        write_data(i, dataOut);
-        outputStatus[i].sinceOn = 0;
-      }
+    outputStatus[i].sinceOn++;
+
+    if (outputStatus[i].sinceOn >= decayRate){
+      outputStatus[i].lastVolume--;
+      outputStatus[i].attackCount++;
+      byte dataOut = (outputStatus[i].lastVolume << 4) | outputStatus[i].lastVolume; //write new volume
+      write_data(i, dataOut);
+      outputStatus[i].sinceOn = 0;
     }
+  }
 }
 
 void processRelease(short int i){
@@ -404,3 +435,95 @@ void processRelease(short int i){
     }
   }
 }
+
+
+void processPerc(short int chan){
+  outputStatus[chan].sinceOn++;
+
+  if (outputStatus[chan].sinceOn++ >= 90){
+    stopNote(chan);
+    write_data(0x15, B00000000); //disable noise on channel 5
+  }
+
+}
+
+void setFrequency(byte chan, byte note){
+  byte noteAdr[] = {5, 32, 60, 85, 110, 132, 153, 173, 192, 210, 227, 243}; // The 12 note-within-an-octave values for the SAA1099, starting at B
+  byte octaveAdr[] = {0x10, 0x11, 0x12}; //The 3 octave addresses (was 10, 11, 12)
+  byte channelAdr[] = {0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D}; //Addresses for the channel frequencies
+  byte addressOut;
+  byte dataOut;
+
+  note += 1;
+
+  byte octave = (note / 12) - 1; //Some fancy math to get the correct octave
+  byte noteVal = note - ((octave + 1) * 12); //More fancy math to get the correct note
+
+  outputStatus[chan].prevOctaves = octave; //Set this variable so we can remember /next/ time what octave was /last/ played on this channel
+
+  //set octave address
+  addressOut = octaveAdr[chan / 2];
+
+  //set octave data
+  if (chan == 0 || chan == 2 || chan == 4) {
+    dataOut = octave | (outputStatus[chan + 1].prevOctaves << 4); //Do fancy math so that we don't overwrite what's already on the register, except in the area we want to.
+  }
+
+  if (chan == 1 || chan == 3 || chan == 5) {
+    dataOut = (octave << 4) | outputStatus[chan - 1].prevOctaves ; //Do fancy math so that we don't overwrite what's already on the register, except in the area we want to.
+  }
+
+  write_data(addressOut, dataOut); //write octave
+
+  //Note addressing and playing code
+  //Set address to the channel's address
+  addressOut = channelAdr[chan];
+
+
+  //set note data and write address + data
+  dataOut = noteAdr[noteVal];
+  write_data(addressOut, dataOut);
+}
+
+
+/*
+void toggleNoise(){
+
+  byte noiseEnable = 0;
+
+  for (int i = 0; i > 6; i++){
+    noiseEnable = noiseEnable + outputStatus[i].isPerc * pow(2, i);
+  }
+
+  byte frequencyEnable = ~noiseEnable;
+  write_data(0x15, noiseEnable);
+  write_data(0x14, frequencyEnable);
+
+
+}
+
+void disableEnvelope(byte chan){
+
+  //envelope for channel 2
+  if (chan == 2){
+    write_data(0x18, 0x00);
+  }
+  //envelope for channel 5
+  else{
+    write_data(0x19, 0x00);
+  }
+
+}
+*/
+
+
+/*
+void enableEnvelope(byte chan){
+
+//percussion channel 5
+  if (chan == 5){
+    write_data(0x19, B10101010); //repeat triangle
+  }
+
+}
+*/
