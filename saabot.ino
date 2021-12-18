@@ -19,7 +19,7 @@ struct MySettings : public midi::DefaultSettings
 */
 
 // read through midi jack
-//MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
+MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI2);
 
 //read through usb serial
 struct CustomBaud : public midi::DefaultSettings{
@@ -112,12 +112,15 @@ void setup(){
   // Connect the handleNoteOn function to the library,
   // so it is called upon reception of a NoteOn.
   MIDI.setHandleNoteOn(handleNoteOn);  // Put only the name of the function
+  MIDI2.setHandleNoteOn(handleNoteOn);  // Put only the name of the function
 
   // Do the same for NoteOffs
   MIDI.setHandleNoteOff(handleNoteOff);
+  MIDI2.setHandleNoteOff(handleNoteOff);
 
   // Initiate MIDI communications, listen to all channels
   MIDI.begin(MIDI_CHANNEL_OMNI);
+  MIDI2.begin(MIDI_CHANNEL_OMNI);
   Serial.begin(38400); //for midi over USB
 
   //startup noise
@@ -149,6 +152,7 @@ void loop(){
 
 
  MIDI.read();
+ MIDI2.read();
  unsigned long now = millis();
 
 
