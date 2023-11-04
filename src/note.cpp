@@ -1,15 +1,7 @@
 #include "note.h"
 #include "io.h"
 
-struct status outputStatus[] = {
-    {false, false, 0, 0, 0, 0, 0, 0},    //channel 0
-    {false, false, 0, 0, 0, 0, 0, 0},    //channel 1
-    {false, false, 0, 0, 0, 0, 0, 0},    //channel 2
-    {false, false, 0, 0, 0, 0, 0, 0},    //channel 3
-    {false, false, 0, 0, 0, 0, 0, 0},    //channel 4
-    {false, false, 0, 0, 0, 0, 0, 0},    //channel 5
-};
-
+struct status outputStatus[6];
 const int releaseRate = 12;
 const int attackRate = 4;
 const int decayRate = 4;
@@ -28,22 +20,22 @@ void startNote (byte chan, byte note, byte volume) {
     byte octave = (note / 12) - 1; //Some fancy math to get the correct octave
     byte noteVal = note - ((octave + 1) * 12); //More fancy math to get the correct note
 
-    outputStatus[chan].prevOctaves = octave; //Set this variable so we can remember /next/ time what octave was /last/ played on this channel
-
-    //set octave address
-    addressOut = octaveAdr[chan / 2];
-
-    //set octave data
-    if (chan == 0 || chan == 2 || chan == 4) {
-        dataOut = octave | (outputStatus[chan + 1].prevOctaves << 4); //Do fancy math so that we don't overwrite what's already on the register, except in the area we want to.
+    //skip octave setting if same as before
+    if(outputStatus[chan].prevOctaves != octave){
+        //if new octave set it here
+        outputStatus[chan].prevOctaves = octave; //Set this variable so we can remember /next/ time what octave was /last/ played on this channel
+        //set octave address
+        addressOut = octaveAdr[chan / 2];
+        //set octave data
+        if (chan == 0 || chan == 2 || chan == 4) {
+            dataOut = octave | (outputStatus[chan + 1].prevOctaves << 4); //Do fancy math so that we don't overwrite what's already on the register, except in the area we want to.
+        }
+        if (chan == 1 || chan == 3 || chan == 5) {
+            dataOut = (octave << 4) | outputStatus[chan - 1].prevOctaves ; //Do fancy math so that we don't overwrite what's already on the register, except in the area we want to.
+        }
+        write_data(addressOut, dataOut); //write octave
     }
-
-    if (chan == 1 || chan == 3 || chan == 5) {
-        dataOut = (octave << 4) | outputStatus[chan - 1].prevOctaves ; //Do fancy math so that we don't overwrite what's already on the register, except in the area we want to.
-    }
-
-    write_data(addressOut, dataOut); //write octave
-
+    
     //Note addressing and playing code
     //Set address to the channel's address
     addressOut = channelAdr[chan];
@@ -73,7 +65,6 @@ void startNote (byte chan, byte note, byte volume) {
 
     outputStatus[chan].sinceOff = 0;
     outputStatus[chan].sinceOn = 0;
-
 }
 
 void stopNote (byte chan) {
@@ -116,9 +107,7 @@ void handleNoteOff(byte channel, byte pitch, byte velocity) {
         if ((outputStatus[i].currentPitch == pitch + 12) && (outputStatus[i].keyOn == true)){
             outputStatus[i].keyOn = false;
         }
-
     }
-
 }
 
 short int getChannelOut(){
@@ -195,7 +184,6 @@ void processRelease(short int i){
             else{
                 byte dataOut = (outputStatus[i].lastVolume << 4) | outputStatus[i].lastVolume; //write new volume
                 write_data(i, dataOut);
-
                 outputStatus[i].sinceOff = 0;
             }
         }
