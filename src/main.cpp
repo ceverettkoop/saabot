@@ -6,7 +6,7 @@
 #include "io.h"
 #include "note.h"
 
-MIDI_CREATE_DEFAULT_INSTANCE();
+MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
 
 static unsigned long lastUpdate = 0;
 
