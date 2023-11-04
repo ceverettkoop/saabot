@@ -1,6 +1,7 @@
 //SAA1099P midi controller
 //
 
+#include <Arduino.h>
 #include <MIDI.h>
 
 MIDI_CREATE_DEFAULT_INSTANCE();
@@ -25,8 +26,8 @@ const int attackRate = 4;
 const int decayRate = 4;
 
 struct status{
-  boolean channelActive;
-  boolean keyOn;
+  bool channelActive;
+  bool keyOn;
   int sinceOn;
   int sinceOff;
   byte prevOctaves;
