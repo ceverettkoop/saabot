@@ -1,18 +1,65 @@
+//
+// !!! WARNING !!! AUTO-GENERATED FILE!
+// PLEASE DO NOT MODIFY IT AND USE "platformio.ini":
+// https://docs.platformio.org/page/projectconf/section_env_build.html#build-flags
+//
 {
     "configurations": [
         {
-            "name": "Linux",
+            "name": "PlatformIO",
             "includePath": [
-                "${workspaceFolder}/**",
-                "~/Arduino/libraries/**",
-                "~/.arduino15/packages/arduino/**"
+                "/home/sean/development/saabot/include",
+                "/home/sean/development/saabot/src",
+                "/home/sean/development/saabot/.pio/libdeps/nano_every/MIDI Library/src",
+                "/home/sean/.platformio/packages/framework-arduino-megaavr/cores/arduino/api/deprecated",
+                "/home/sean/.platformio/packages/framework-arduino-megaavr/cores/arduino",
+                "/home/sean/.platformio/packages/framework-arduino-megaavr/variants/nona4809",
+                "/home/sean/development/saabot/.pio/libdeps/nano_every/Unity/src",
+                "/home/sean/.platformio/packages/framework-arduino-megaavr/libraries/EEPROM/src",
+                "/home/sean/.platformio/packages/framework-arduino-megaavr/libraries/SPI/src",
+                "/home/sean/.platformio/packages/framework-arduino-megaavr/libraries/SoftwareSerial/src",
+                "/home/sean/.platformio/packages/framework-arduino-megaavr/libraries/Wire/src",
+                ""
             ],
-            "defines": [],
-            "compilerPath": "/usr/bin/gcc",
-            "cStandard": "c11",
+            "browse": {
+                "limitSymbolsToIncludedHeaders": true,
+                "path": [
+                    "/home/sean/development/saabot/include",
+                    "/home/sean/development/saabot/src",
+                    "/home/sean/development/saabot/.pio/libdeps/nano_every/MIDI Library/src",
+                    "/home/sean/.platformio/packages/framework-arduino-megaavr/cores/arduino/api/deprecated",
+                    "/home/sean/.platformio/packages/framework-arduino-megaavr/cores/arduino",
+                    "/home/sean/.platformio/packages/framework-arduino-megaavr/variants/nona4809",
+                    "/home/sean/development/saabot/.pio/libdeps/nano_every/Unity/src",
+                    "/home/sean/.platformio/packages/framework-arduino-megaavr/libraries/EEPROM/src",
+                    "/home/sean/.platformio/packages/framework-arduino-megaavr/libraries/SPI/src",
+                    "/home/sean/.platformio/packages/framework-arduino-megaavr/libraries/SoftwareSerial/src",
+                    "/home/sean/.platformio/packages/framework-arduino-megaavr/libraries/Wire/src",
+                    ""
+                ]
+            },
+            "defines": [
+                "PLATFORMIO=60111",
+                "ARDUINO_AVR_NANO_EVERY",
+                "AVR_NANO_4809_328MODE",
+                "MILLIS_USE_TIMERB3",
+                "NO_EXTERNAL_I2C_PULLUP",
+                "F_CPU=16000000L",
+                "ARDUINO_ARCH_MEGAAVR",
+                "ARDUINO=10808",
+                "USB_VID=0x2341",
+                "USB_PID=0x0058",
+                "USB_PRODUCT=\"Arduino Nano Every\"",
+                "USB_MANUFACTURER=\"Arduino\"",
+                ""
+            ],
+            "cStandard": "gnu11",
             "cppStandard": "gnu++11",
-            "intelliSenseMode": "linux-gcc-x64",
-            "configurationProvider": "Linux"
+            "compilerPath": "/home/sean/.platformio/packages/toolchain-atmelavr/bin/avr-gcc",
+            "compilerArgs": [
+                "-mmcu=atmega4809",
+                ""
+            ]
         }
     ],
     "version": 4
