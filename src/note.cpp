@@ -86,14 +86,14 @@ void stopNote (byte chan) {
 
 void handleNoteOn(byte channel, byte pitch, byte velocity) {
     
-    startNote(1, 64, 32); //set a note for some reason?
+    //startNote(1, 64, 32); //set a note for some reason?
     short int channelOut = getChannelOut();
 
     outputStatus[channelOut].channelActive = true;
     outputStatus[channelOut].keyOn = true;
     outputStatus[channelOut].currentPitch = pitch;
 
-    //startNote(channelOut, pitch, velocity);
+    startNote(channelOut, pitch, velocity);
 
     //check if another channel is free, if so play octave
     if (isChannelFree()){
@@ -102,7 +102,7 @@ void handleNoteOn(byte channel, byte pitch, byte velocity) {
         outputStatus[channelOut].keyOn = true;
         outputStatus[channelOut].currentPitch = (pitch+12);
 
-        //startNote(channelOut, (pitch + 12), velocity);
+        startNote(channelOut, (pitch + 12), velocity);
     }
 
 }
