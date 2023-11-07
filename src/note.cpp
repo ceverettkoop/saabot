@@ -2,15 +2,16 @@
 #include "io.h"
 
 struct Status output_status[6];
-const int releaseRate = 12;
-const int attackRate = 4;
-const int decayRate = 4;
+const int release_rate = 12;
+const int attack_rate = 4;
+const int decay_rate = 4;
 
+//note addressing adapted from https://github.com/Bobcatmodder/SAATunes
 void start_note (byte chan, byte note, byte volume) {
 
-    byte noteAdr[] = {5, 32, 60, 85, 110, 132, 153, 173, 192, 210, 227, 243}; // The 12 note-within-an-octave values for the SAA1099, starting at B
-    byte octaveAdr[] = {0x10, 0x11, 0x12}; //The 3 octave addresses (was 10, 11, 12)
-    byte channelAdr[] = {0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D}; //Addresses for the channel frequencies
+    const byte note_adr[] = {5, 32, 60, 85, 110, 132, 153, 173, 192, 210, 227, 243}; // The 12 note-within-an-octave values for the SAA1099, starting at B
+    const byte octave_adr[] = {0x10, 0x11, 0x12}; //The 3 octave addresses (was 10, 11, 12)
+    const byte channel_adr[] = {0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D}; //Addresses for the channel frequencies
     byte addressOut;
     byte dataOut;
 
@@ -25,7 +26,7 @@ void start_note (byte chan, byte note, byte volume) {
         //if new octave set it here
         output_status[chan].prevOctaves = octave; //Set this variable so we can remember /next/ time what octave was /last/ played on this channel
         //set octave address
-        addressOut = octaveAdr[chan / 2];
+        addressOut = octave_adr[chan / 2];
         //set octave data
         if (chan == 0 || chan == 2 || chan == 4) {
             dataOut = octave | (output_status[chan + 1].prevOctaves << 4); //Do fancy math so that we don't overwrite what's already on the register, except in the area we want to.
@@ -38,10 +39,10 @@ void start_note (byte chan, byte note, byte volume) {
     
     //Note addressing and playing code
     //Set address to the channel's address
-    addressOut = channelAdr[chan];
+    addressOut = channel_adr[chan];
 
     //set note data and write address + data
-    dataOut = noteAdr[noteVal];
+    dataOut = note_adr[noteVal];
     write_data(addressOut, dataOut);
 
     //Setting volume to match velocity - decay and release handled elsewhere
@@ -77,25 +78,23 @@ void stop_note (byte chan) {
 
 void handle_note_on(byte channel, byte pitch, byte velocity) {
     
-    //startNote(1, 64, 32); //set a note for some reason?
-    short int channelOut = get_channel_out();
+    short int channel_out = get_channel_out();
 
-    output_status[channelOut].channelActive = true;
-    output_status[channelOut].keyOn = true;
-    output_status[channelOut].currentPitch = pitch;
+    output_status[channel_out].channelActive = true;
+    output_status[channel_out].keyOn = true;
+    output_status[channel_out].currentPitch = pitch;
 
-    start_note(channelOut, pitch, velocity);
+    start_note(channel_out, pitch, velocity);
 
     //check if another channel is free, if so play octave
     if (is_channel_free()){
-        channelOut = get_channel_out();
-        output_status[channelOut].channelActive = true;
-        output_status[channelOut].keyOn = true;
-        output_status[channelOut].currentPitch = (pitch+12);
+        channel_out = get_channel_out();
+        output_status[channel_out].channelActive = true;
+        output_status[channel_out].keyOn = true;
+        output_status[channel_out].currentPitch = (pitch+12);
 
-        start_note(channelOut, (pitch + 12), velocity);
+        start_note(channel_out, (pitch + 12), velocity);
     }
-
 }
 
 void handle_note_off(byte channel, byte pitch, byte velocity) {
@@ -143,7 +142,7 @@ void proc_attack(short int i){
 
             output_status[i].sinceOn++;
 
-            if (output_status[i].sinceOn >= attackRate){
+            if (output_status[i].sinceOn >= attack_rate){
                 output_status[i].lastVolume++;
                 output_status[i].attackCount++;
                 byte dataOut = (output_status[i].lastVolume << 4) | output_status[i].lastVolume; //write new volume
@@ -159,7 +158,7 @@ void proc_decay(short int i){
 
             output_status[i].sinceOn++;
 
-            if (output_status[i].sinceOn >= decayRate){
+            if (output_status[i].sinceOn >= decay_rate){
                 output_status[i].lastVolume--;
                 output_status[i].attackCount++;
                 byte dataOut = (output_status[i].lastVolume << 4) | output_status[i].lastVolume; //write new volume
@@ -175,7 +174,7 @@ void proc_release(short int i){
     if (output_status[i].keyOn == false && output_status[i].channelActive == true){
      output_status[i].sinceOff++;
 
-     if (output_status[i].sinceOff >= releaseRate){
+     if (output_status[i].sinceOff >= release_rate){
          output_status[i].lastVolume--;
 
          if (output_status[i].lastVolume <= 0){ //if release takes us to 0 stop note
