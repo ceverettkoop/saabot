@@ -51,34 +51,34 @@ void setup(){
 
     // Connect the handleNoteOn function to the library,
     // so it is called upon reception of a NoteOn.
-    MIDI.setHandleNoteOn(handleNoteOn);    // Put only the name of the function
+    MIDI.setHandleNoteOn(handle_note_on);    // Put only the name of the function
 
     // Do the same for NoteOffs
-    MIDI.setHandleNoteOff(handleNoteOff);
+    MIDI.setHandleNoteOff(handle_note_off);
 
     // Initiate MIDI communications, listen to all channels
     MIDI.begin(MIDI_CHANNEL_OMNI);
 
     //startup noise
-    startNote(3, 24, 64);
+    start_note(3, 24, 64);
     delay(32);
-    startNote(0, 48, 64);
+    start_note(0, 48, 64);
     delay(32);
-    startNote(1, 52, 64);
+    start_note(1, 52, 64);
     delay(32);
-    startNote(2, 55, 64);
+    start_note(2, 55, 64);
     delay(32);
-    startNote(3, 60, 64);
+    start_note(3, 60, 64);
     delay(32);
-    startNote(4, 64, 64);
+    start_note(4, 64, 64);
     delay(1028);
 
-    stopNote(0);
-    stopNote(1);
-    stopNote(2);
-    stopNote(3);
-    stopNote(4);
-    stopNote(5);
+    stop_note(0);
+    stop_note(1);
+    stop_note(2);
+    stop_note(3);
+    stop_note(4);
+    stop_note(5);
 }
 
 void loop(){
@@ -91,9 +91,9 @@ void loop(){
      lastUpdate += 10;
 
      for (int i = 0; i < 6; i++){
-         processAttack(i);
-         processDecay(i);
-         processRelease(i);
+         proc_attack(i);
+         proc_decay(i);
+         proc_release(i);
         }
     }
 }

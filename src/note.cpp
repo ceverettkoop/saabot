@@ -1,12 +1,12 @@
 #include "note.h"
 #include "io.h"
 
-struct status outputStatus[6];
+struct Status output_status[6];
 const int releaseRate = 12;
 const int attackRate = 4;
 const int decayRate = 4;
 
-void startNote (byte chan, byte note, byte volume) {
+void start_note (byte chan, byte note, byte volume) {
 
     byte noteAdr[] = {5, 32, 60, 85, 110, 132, 153, 173, 192, 210, 227, 243}; // The 12 note-within-an-octave values for the SAA1099, starting at B
     byte octaveAdr[] = {0x10, 0x11, 0x12}; //The 3 octave addresses (was 10, 11, 12)
@@ -21,17 +21,17 @@ void startNote (byte chan, byte note, byte volume) {
     byte noteVal = note - ((octave + 1) * 12); //More fancy math to get the correct note
 
     //skip octave setting if same as before
-    if(outputStatus[chan].prevOctaves != octave){
+    if(output_status[chan].prevOctaves != octave){
         //if new octave set it here
-        outputStatus[chan].prevOctaves = octave; //Set this variable so we can remember /next/ time what octave was /last/ played on this channel
+        output_status[chan].prevOctaves = octave; //Set this variable so we can remember /next/ time what octave was /last/ played on this channel
         //set octave address
         addressOut = octaveAdr[chan / 2];
         //set octave data
         if (chan == 0 || chan == 2 || chan == 4) {
-            dataOut = octave | (outputStatus[chan + 1].prevOctaves << 4); //Do fancy math so that we don't overwrite what's already on the register, except in the area we want to.
+            dataOut = octave | (output_status[chan + 1].prevOctaves << 4); //Do fancy math so that we don't overwrite what's already on the register, except in the area we want to.
         }
         if (chan == 1 || chan == 3 || chan == 5) {
-            dataOut = (octave << 4) | outputStatus[chan - 1].prevOctaves ; //Do fancy math so that we don't overwrite what's already on the register, except in the area we want to.
+            dataOut = (octave << 4) | output_status[chan - 1].prevOctaves ; //Do fancy math so that we don't overwrite what's already on the register, except in the area we want to.
         }
         write_data(addressOut, dataOut); //write octave
     }
@@ -57,63 +57,63 @@ void startNote (byte chan, byte note, byte volume) {
         vol = 11;
     }
 
-    outputStatus[chan].lastVolume = vol;
+    output_status[chan].lastVolume = vol;
 
 	dataOut = (vol << 4) | vol;
 
     write_data(addressOut, dataOut);
 
-    outputStatus[chan].sinceOff = 0;
-    outputStatus[chan].sinceOn = 0;
+    output_status[chan].sinceOff = 0;
+    output_status[chan].sinceOn = 0;
 }
 
-void stopNote (byte chan) {
+void stop_note (byte chan) {
     byte addressOut = chan;
     write_data(addressOut, B00000000);
-    outputStatus[chan].channelActive = false;
-    outputStatus[chan].sinceOff = 0;
-    outputStatus[chan].attackCount = 0;
+    output_status[chan].channelActive = false;
+    output_status[chan].sinceOff = 0;
+    output_status[chan].attackCount = 0;
 }
 
-void handleNoteOn(byte channel, byte pitch, byte velocity) {
+void handle_note_on(byte channel, byte pitch, byte velocity) {
     
     //startNote(1, 64, 32); //set a note for some reason?
-    short int channelOut = getChannelOut();
+    short int channelOut = get_channel_out();
 
-    outputStatus[channelOut].channelActive = true;
-    outputStatus[channelOut].keyOn = true;
-    outputStatus[channelOut].currentPitch = pitch;
+    output_status[channelOut].channelActive = true;
+    output_status[channelOut].keyOn = true;
+    output_status[channelOut].currentPitch = pitch;
 
-    startNote(channelOut, pitch, velocity);
+    start_note(channelOut, pitch, velocity);
 
     //check if another channel is free, if so play octave
-    if (isChannelFree()){
-        channelOut = getChannelOut();
-        outputStatus[channelOut].channelActive = true;
-        outputStatus[channelOut].keyOn = true;
-        outputStatus[channelOut].currentPitch = (pitch+12);
+    if (is_channel_free()){
+        channelOut = get_channel_out();
+        output_status[channelOut].channelActive = true;
+        output_status[channelOut].keyOn = true;
+        output_status[channelOut].currentPitch = (pitch+12);
 
-        startNote(channelOut, (pitch + 12), velocity);
+        start_note(channelOut, (pitch + 12), velocity);
     }
 
 }
 
-void handleNoteOff(byte channel, byte pitch, byte velocity) {
+void handle_note_off(byte channel, byte pitch, byte velocity) {
 
     for (int i = 0; i < 6; i++){
-        if ((outputStatus[i].currentPitch == pitch) && (outputStatus[i].keyOn == true)){
-            outputStatus[i].keyOn = false;
+        if ((output_status[i].currentPitch == pitch) && (output_status[i].keyOn == true)){
+            output_status[i].keyOn = false;
         }
-        if ((outputStatus[i].currentPitch == pitch + 12) && (outputStatus[i].keyOn == true)){
-            outputStatus[i].keyOn = false;
+        if ((output_status[i].currentPitch == pitch + 12) && (output_status[i].keyOn == true)){
+            output_status[i].keyOn = false;
         }
     }
 }
 
-short int getChannelOut(){
+short int get_channel_out(){
 /*this code is for testing the two channels with built-in envelope control /*
 
-    if (outputStatus[2].channelActive == false){
+    if (output_status[2].channelActive == false){
         return 2;
     }
         else{
@@ -121,70 +121,70 @@ short int getChannelOut(){
         }
 */
     for (int i = 0; i < 6; i++){
-        if (outputStatus[i].channelActive == false){
+        if (output_status[i].channelActive == false){
             return i;
         }
     }
     return 0;
 }
 
-bool isChannelFree(){
+bool is_channel_free(){
     for (int i = 0; i < 6; i++){
-        if (outputStatus[i].channelActive == false){
+        if (output_status[i].channelActive == false){
             return 1;
         }
     }
     return 0;
 }
 
-void processAttack(short int i){
+void proc_attack(short int i){
     //ATTACK PROCESSING
-        if (outputStatus[i].channelActive == true && outputStatus[i].attackCount < 4){
+        if (output_status[i].channelActive == true && output_status[i].attackCount < 4){
 
-            outputStatus[i].sinceOn++;
+            output_status[i].sinceOn++;
 
-            if (outputStatus[i].sinceOn >= attackRate){
-                outputStatus[i].lastVolume++;
-                outputStatus[i].attackCount++;
-                byte dataOut = (outputStatus[i].lastVolume << 4) | outputStatus[i].lastVolume; //write new volume
+            if (output_status[i].sinceOn >= attackRate){
+                output_status[i].lastVolume++;
+                output_status[i].attackCount++;
+                byte dataOut = (output_status[i].lastVolume << 4) | output_status[i].lastVolume; //write new volume
                 write_data(i, dataOut);
-                outputStatus[i].sinceOn = 0;
+                output_status[i].sinceOn = 0;
             }
         }
 }
 
-void processDecay(short int i){
+void proc_decay(short int i){
     //decay PROCESSING - sustain is set by upper bound
-        if (outputStatus[i].channelActive == true && outputStatus[i].attackCount >= 4 && outputStatus[i].attackCount < 8 ){ //last number sets sustain
+        if (output_status[i].channelActive == true && output_status[i].attackCount >= 4 && output_status[i].attackCount < 8 ){ //last number sets sustain
 
-            outputStatus[i].sinceOn++;
+            output_status[i].sinceOn++;
 
-            if (outputStatus[i].sinceOn >= decayRate){
-                outputStatus[i].lastVolume--;
-                outputStatus[i].attackCount++;
-                byte dataOut = (outputStatus[i].lastVolume << 4) | outputStatus[i].lastVolume; //write new volume
+            if (output_status[i].sinceOn >= decayRate){
+                output_status[i].lastVolume--;
+                output_status[i].attackCount++;
+                byte dataOut = (output_status[i].lastVolume << 4) | output_status[i].lastVolume; //write new volume
                 write_data(i, dataOut);
-                outputStatus[i].sinceOn = 0;
+                output_status[i].sinceOn = 0;
             }
         }
 }
 
-void processRelease(short int i){
+void proc_release(short int i){
     //release PROCESSING
     //if key is off but sound is playing we are still in release
-    if (outputStatus[i].keyOn == false && outputStatus[i].channelActive == true){
-     outputStatus[i].sinceOff++;
+    if (output_status[i].keyOn == false && output_status[i].channelActive == true){
+     output_status[i].sinceOff++;
 
-     if (outputStatus[i].sinceOff >= releaseRate){
-         outputStatus[i].lastVolume--;
+     if (output_status[i].sinceOff >= releaseRate){
+         output_status[i].lastVolume--;
 
-         if (outputStatus[i].lastVolume <= 0){ //if release takes us to 0 stop note
-             stopNote(i);
+         if (output_status[i].lastVolume <= 0){ //if release takes us to 0 stop note
+             stop_note(i);
             }
             else{
-                byte dataOut = (outputStatus[i].lastVolume << 4) | outputStatus[i].lastVolume; //write new volume
+                byte dataOut = (output_status[i].lastVolume << 4) | output_status[i].lastVolume; //write new volume
                 write_data(i, dataOut);
-                outputStatus[i].sinceOff = 0;
+                output_status[i].sinceOff = 0;
             }
         }
     }

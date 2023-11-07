@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 
-struct status{
+struct Status{
     bool channelActive = false;
     bool keyOn = false;
     int sinceOn = 0;
@@ -14,16 +14,16 @@ struct status{
     short int attackCount = 0;
 };
 
-extern struct status outputStatus[6];
+extern struct Status output_status[6];
 
-void startNote (byte chan, byte note, byte volume);
-void stopNote (byte chan);
-void handleNoteOn(byte channel, byte pitch, byte velocity);
-void handleNoteOff(byte channel, byte pitch, byte velocity);
-short int getChannelOut();
-bool isChannelFree();
-void processAttack(short int i);
-void processDecay(short int i);
-void processRelease(short int i);
+void start_note (byte chan, byte note, byte volume);
+void stop_note (byte chan);
+void handle_note_on(byte channel, byte pitch, byte velocity);
+void handle_note_off(byte channel, byte pitch, byte velocity);
+short int get_channel_out();
+bool is_channel_free();
+void proc_attack(short int i);
+void proc_decay(short int i);
+void proc_release(short int i);
 
 #endif /* NOTE_H */
