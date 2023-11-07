@@ -1,15 +1,18 @@
 #include "note.h"
 #include "io.h"
+#include "scheduler.h"
 
 struct Status output_status[6];
 const int release_rate = 12;
 const int attack_rate = 4;
 const int decay_rate = 4;
 
+//equal temperment approximation of real notes
+const byte note_adr[] = {5, 32, 60, 85, 110, 132, 153, 173, 192, 210, 227, 243};
+
 //note addressing adapted from https://github.com/Bobcatmodder/SAATunes
 void start_note (byte chan, byte note, byte volume) {
 
-    const byte note_adr[] = {5, 32, 60, 85, 110, 132, 153, 173, 192, 210, 227, 243}; // The 12 note-within-an-octave values for the SAA1099, starting at B
     const byte octave_adr[] = {0x10, 0x11, 0x12}; //The 3 octave addresses (was 10, 11, 12)
     const byte channel_adr[] = {0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D}; //Addresses for the channel frequencies
     byte addressOut;
@@ -92,8 +95,23 @@ void handle_note_on(byte channel, byte pitch, byte velocity) {
         output_status[channel_out].channelActive = true;
         output_status[channel_out].keyOn = true;
         output_status[channel_out].currentPitch = (pitch+12);
-
         start_note(channel_out, (pitch + 12), velocity);
+    }
+    //now add overtone
+    if (is_channel_free()){
+        channel_out = get_channel_out();
+        output_status[channel_out].channelActive = true;
+        output_status[channel_out].keyOn = true;
+        output_status[channel_out].currentPitch = (pitch+18);
+        start_note(channel_out, (pitch + 18), velocity);
+    }
+    //now add another octave
+    if (is_channel_free()){
+        channel_out = get_channel_out();
+        output_status[channel_out].channelActive = true;
+        output_status[channel_out].keyOn = true;
+        output_status[channel_out].currentPitch = (pitch+24);
+        start_note(channel_out, (pitch + 24), velocity);
     }
 }
 
@@ -103,28 +121,23 @@ void handle_note_off(byte channel, byte pitch, byte velocity) {
         if ((output_status[i].currentPitch == pitch) && (output_status[i].keyOn == true)){
             output_status[i].keyOn = false;
         }
-        if ((output_status[i].currentPitch == pitch + 12) && (output_status[i].keyOn == true)){
+        if ((output_status[i].currentPitch == pitch + 18) && (output_status[i].keyOn == true)){
+            output_status[i].keyOn = false;
+        }
+        if ((output_status[i].currentPitch == pitch + 24) && (output_status[i].keyOn == true)){
             output_status[i].keyOn = false;
         }
     }
 }
 
 short int get_channel_out(){
-/*this code is for testing the two channels with built-in envelope control /*
 
-    if (output_status[2].channelActive == false){
-        return 2;
-    }
-        else{
-            return 5;
-        }
-*/
     for (int i = 0; i < 6; i++){
         if (output_status[i].channelActive == false){
             return i;
         }
     }
-    return 0;
+    return random(0,5);
 }
 
 bool is_channel_free(){

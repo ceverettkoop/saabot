@@ -3,18 +3,12 @@
 
 #include <Arduino.h>
 
-struct Status{
-    bool channelActive = false;
-    bool keyOn = false;
-    int sinceOn = 0;
-    int sinceOff = 0;
-    byte prevOctaves = -1; //so initial octave is set
-    byte currentPitch = 0;
-    int lastVolume = 0;
-    short int attackCount = 0;
+struct NoteRequest{
+    bool channels[6];
+
+
 };
 
-extern struct Status output_status[6];
 
 void start_note (byte chan, byte note, byte volume);
 void stop_note (byte chan);
