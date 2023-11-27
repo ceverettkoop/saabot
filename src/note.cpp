@@ -8,9 +8,10 @@ const int attack_rate = 4;
 const int decay_rate = 4;
 
 //equal temperment approximation of real notes
+//note addressing adapted from https://github.com/Bobcatmodder/SAATunes
 const byte note_adr[] = {5, 32, 60, 85, 110, 132, 153, 173, 192, 210, 227, 243};
 
-//note addressing adapted from https://github.com/Bobcatmodder/SAATunes
+
 void start_note (byte chan, byte note, byte volume) {
 
     const byte octave_adr[] = {0x10, 0x11, 0x12}; //The 3 octave addresses (was 10, 11, 12)
@@ -20,7 +21,6 @@ void start_note (byte chan, byte note, byte volume) {
 
     //Shift the note down by 1, since MIDI octaves start at C, but octaves on the SAA1099 start at B
     note += 1;
-
     byte octave = (note / 12) - 1; //Some fancy math to get the correct octave
     byte noteVal = note - ((octave + 1) * 12); //More fancy math to get the correct note
 

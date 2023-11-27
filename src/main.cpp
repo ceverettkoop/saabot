@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 #include <MIDI.h>
-#include "io.h"
+#include "saa.h"
 #include "note.h"
 
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);

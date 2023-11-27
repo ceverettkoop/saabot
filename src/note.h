@@ -5,8 +5,6 @@
 
 struct NoteRequest{
     bool channels[6];
-
-
 };
 
 
