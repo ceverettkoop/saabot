@@ -3,10 +3,21 @@
 
 #include <Arduino.h>
 #include <MIDI.h>
-#include "io.h"
+#include "saa.h"
 #include "note.h"
 
+#ifdef USB_MIDI
+//read through usb serial
+struct CustomBaud : public midi::DefaultSettings{
+    static const long BaudRate = 38400; // Baud rate for hairless
+    static const unsigned SysExMaxSize = 1024; // Accept SysEx messages up to 1024 bytes long.
+    static const bool UseRunningStatus = true; // My devices seem to be ok with it.
+};
+MIDI_CREATE_CUSTOM_INSTANCE(HardwareSerial, Serial, MIDI, CustomBaud);
+#else
+//hardware midi port
 MIDI_CREATE_INSTANCE(HardwareSerial, Serial1, MIDI);
+#endif
 
 static unsigned long lastUpdate = 0;
 
@@ -58,9 +69,13 @@ void setup(){
 
     // Initiate MIDI communications, listen to all channels
     MIDI.begin(MIDI_CHANNEL_OMNI);
-
+    #ifdef USB_MIDI
+    Serial.begin(38400); //for midi over USB
+    #endif
+    
     //startup noise
-    start_note(3, 24, 64);
+    //start_note(3, 24, 64);
+    handle_note_on(007, 38, 100);
     delay(32);
     start_note(0, 48, 64);
     delay(32);

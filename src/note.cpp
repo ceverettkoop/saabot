@@ -1,5 +1,5 @@
 #include "note.h"
-#include "io.h"
+#include "saa.h"
 #include "scheduler.h"
 
 struct Status output_status[6];
@@ -119,6 +119,9 @@ void handle_note_off(byte channel, byte pitch, byte velocity) {
 
     for (int i = 0; i < 6; i++){
         if ((output_status[i].currentPitch == pitch) && (output_status[i].keyOn == true)){
+            output_status[i].keyOn = false;
+        }
+        if ((output_status[i].currentPitch == pitch + 12) && (output_status[i].keyOn == true)){
             output_status[i].keyOn = false;
         }
         if ((output_status[i].currentPitch == pitch + 18) && (output_status[i].keyOn == true)){
